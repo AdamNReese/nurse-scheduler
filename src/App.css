@@ -114,6 +114,184 @@ button:disabled {
   background-color: #f8f9fa;
 }
 
+.nurse-list button {
+  margin-right: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.nurse-edit-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.nurse-edit-modal {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.nurse-edit-form {
+  text-align: left;
+}
+
+.nurse-edit-form h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.form-actions button {
+  padding: 10px 20px;
+}
+
+.tenant-selector {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.tenant-selector h2 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 30px;
+}
+
+.current-tenant {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #e8f5e8;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #c3e6c3;
+}
+
+.current-tenant h3 {
+  margin: 0;
+  color: #2d5a2d;
+}
+
+.existing-tenants {
+  margin-bottom: 30px;
+}
+
+.existing-tenants h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.tenant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tenant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.tenant-info h4 {
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.tenant-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.tenant-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.tenant-actions button {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.delete-btn {
+  background-color: #dc3545 !important;
+}
+
+.delete-btn:hover {
+  background-color: #c82333 !important;
+}
+
+.create-tenant-section {
+  text-align: center;
+}
+
+.create-tenant-btn {
+  background-color: #28a745;
+  color: white;
+  padding: 15px 30px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.create-tenant-btn:hover {
+  background-color: #218838;
+}
+
+.create-tenant-form {
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: left;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: white;
+}
+
+.create-tenant-form h3 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.tenant-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: #666;
+}
+
 .schedule-controls {
   max-width: 400px;
   margin: 0 auto;

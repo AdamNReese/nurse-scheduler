@@ -4,48 +4,91 @@ import NurseForm from './components/NurseForm';
 import NurseList from './components/NurseList';
 import ScheduleControls from './components/ScheduleControls';
 import ScheduleDisplay from './components/ScheduleDisplay';
-import { Nurse, NurseScheduler, PreferenceLevel } from './scheduler';
-
-// Initial sample nurses
-const initialNurses = [
-  new Nurse('Sarah Johnson', '2018-03-15', PreferenceLevel.PREFER, PreferenceLevel.AVOID, PreferenceLevel.NEUTRAL),
-  new Nurse('Michael Chen', '2019-07-22', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.AVOID),
-  new Nurse('Emily Rodriguez', '2020-01-10', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
-  new Nurse('David Thompson', '2021-05-18', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
-  new Nurse('Jessica Williams', '2021-09-03', PreferenceLevel.AVOID, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
-  new Nurse('Robert Martinez', '2022-02-14', PreferenceLevel.PREFER, PreferenceLevel.AVOID, PreferenceLevel.NEUTRAL),
-  new Nurse('Amanda Davis', '2022-08-30', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.AVOID),
-  new Nurse('Christopher Lee', '2023-01-12', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
-  new Nurse('Lisa Anderson', '2023-06-25', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
-  new Nurse('Kevin Brown', '2024-01-08', PreferenceLevel.AVOID, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL)
-];
+import TenantSelector from './components/TenantSelector';
+import { Nurse, NurseScheduler } from './scheduler';
+import { databaseService } from './services/database';
 
 function App() {
-  const [nurses, setNurses] = useState(initialNurses);
+  const [currentTenant, setCurrentTenant] = useState(null);
+  const [nurses, setNurses] = useState([]);
   const [schedule, setSchedule] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Generate initial schedule on component mount
+  // Load nurses when tenant is selected
   useEffect(() => {
-    const scheduler = new NurseScheduler(initialNurses);
+    if (currentTenant) {
+      loadNurses();
+    }
+  }, [currentTenant]);
+
+  // Generate initial schedule when nurses are loaded
+  useEffect(() => {
+    if (nurses.length > 0) {
+      generateInitialSchedule();
+    }
+  }, [nurses]);
+
+  const loadNurses = async () => {
+    if (!currentTenant) return;
+    
+    setLoading(true);
+    try {
+      const loadedNurses = await databaseService.getAllNurses();
+      setNurses(loadedNurses);
+    } catch (error) {
+      console.error('Error loading nurses:', error);
+      alert('Failed to load nurses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateInitialSchedule = () => {
+    if (nurses.length === 0) return;
+    
+    const scheduler = new NurseScheduler(nurses);
     const today = new Date();
     const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const initialSchedule = scheduler.generateSchedule(startDate, 7);
     setSchedule(initialSchedule);
-  }, []);
-
-  const addNurse = (nurseData) => {
-    const nurse = new Nurse(
-      nurseData.name,
-      nurseData.hireDate,
-      nurseData.dayShiftPreference,
-      nurseData.nightShiftPreference,
-      nurseData.weekendPreference
-    );
-    setNurses(prev => [...prev, nurse]);
   };
 
-  const removeNurse = (index) => {
-    setNurses(prev => prev.filter((_, i) => i !== index));
+  const handleTenantSelected = (tenant) => {
+    setCurrentTenant(tenant);
+    if (!tenant) {
+      setNurses([]);
+      setSchedule([]);
+    }
+  };
+
+  const addNurse = async (nurseData) => {
+    try {
+      await databaseService.addNurse(nurseData);
+      await loadNurses(); // Reload nurses from database
+    } catch (error) {
+      console.error('Error adding nurse:', error);
+      alert('Failed to add nurse');
+    }
+  };
+
+  const removeNurse = async (index) => {
+    try {
+      await databaseService.deleteNurse(index);
+      await loadNurses(); // Reload nurses from database
+    } catch (error) {
+      console.error('Error removing nurse:', error);
+      alert('Failed to remove nurse');
+    }
+  };
+
+  const editNurse = async (index, updatedNurseData) => {
+    try {
+      await databaseService.updateNurse(index, updatedNurseData);
+      await loadNurses(); // Reload nurses from database
+    } catch (error) {
+      console.error('Error updating nurse:', error);
+      alert('Failed to update nurse');
+    }
   };
 
   const generateSchedule = (startDate, numDays) => {
@@ -59,28 +102,52 @@ function App() {
     setSchedule(newSchedule);
   };
 
+  if (!currentTenant) {
+    return (
+      <div className="App">
+        <header className="App-header">
+          <h1>Nurse Scheduling System</h1>
+        </header>
+        <main>
+          <div className="section">
+            <TenantSelector onTenantSelected={handleTenantSelected} />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <header className="App-header">
         <h1>Nurse Scheduling System</h1>
+        <div className="tenant-info">
+          <TenantSelector onTenantSelected={handleTenantSelected} />
+        </div>
       </header>
 
       <main>
-        <div className="section">
-          <NurseForm onAddNurse={addNurse} />
-        </div>
+        {loading ? (
+          <div className="loading">Loading nurses...</div>
+        ) : (
+          <>
+            <div className="section">
+              <NurseForm onAddNurse={addNurse} />
+            </div>
 
-        <div className="section">
-          <NurseList nurses={nurses} onRemoveNurse={removeNurse} />
-        </div>
+            <div className="section">
+              <NurseList nurses={nurses} onRemoveNurse={removeNurse} onEditNurse={editNurse} />
+            </div>
 
-        <div className="section">
-          <ScheduleControls onGenerateSchedule={generateSchedule} />
-        </div>
+            <div className="section">
+              <ScheduleControls onGenerateSchedule={generateSchedule} />
+            </div>
 
-        <div className="section">
-          <ScheduleDisplay schedule={schedule} />
-        </div>
+            <div className="section">
+              <ScheduleDisplay schedule={schedule} />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

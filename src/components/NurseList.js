@@ -1,6 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
+import NurseEditForm from './NurseEditForm';
 
-const NurseList = ({ nurses, onRemoveNurse }) => {
+const NurseList = ({ nurses, onRemoveNurse, onEditNurse }) => {
+  const [editingNurse, setEditingNurse] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+
+  const handleEditClick = (nurse, index) => {
+    setEditingNurse(nurse);
+    setEditingIndex(index);
+  };
+
+  const handleSaveEdit = (updatedNurseData) => {
+    onEditNurse(editingIndex, updatedNurseData);
+    setEditingNurse(null);
+    setEditingIndex(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNurse(null);
+    setEditingIndex(null);
+  };
   return (
     <div className="nurse-list">
       <h3>Current Nurses</h3>
@@ -29,12 +48,21 @@ const NurseList = ({ nurses, onRemoveNurse }) => {
                 <td>{nurse.nightShiftPreference}</td>
                 <td>{nurse.weekendPreference}</td>
                 <td>
+                  <button onClick={() => handleEditClick(nurse, index)}>Edit</button>
                   <button onClick={() => onRemoveNurse(index)}>Remove</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      
+      {editingNurse && (
+        <NurseEditForm
+          nurse={editingNurse}
+          onSave={handleSaveEdit}
+          onCancel={handleCancelEdit}
+        />
       )}
     </div>
   );
