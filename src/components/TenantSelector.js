@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { databaseService } from '../services/database';
 
 const TenantSelector = ({ onTenantSelected }) => {
@@ -7,24 +7,35 @@ const TenantSelector = ({ onTenantSelected }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTenantName, setNewTenantName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const onTenantSelectedRef = useRef(onTenantSelected);
 
+  // Keep ref up to date
   useEffect(() => {
-    loadTenants();
-    
-    // Check if there's a current tenant
-    const currentTenant = databaseService.getCurrentTenant();
-    if (currentTenant) {
-      const tenant = tenants.find(t => t.id === currentTenant);
-      if (tenant) {
-        setSelectedTenant(tenant);
-      }
-    }
-  }, []);
+    onTenantSelectedRef.current = onTenantSelected;
+  }, [onTenantSelected]);
 
-  const loadTenants = () => {
+  const loadTenants = useCallback(() => {
     const allTenants = databaseService.getAllTenants();
     setTenants(allTenants);
-  };
+    return allTenants;
+  }, []);
+
+  // Initialize component and check for existing tenant
+  useEffect(() => {
+    const allTenants = loadTenants();
+    const currentTenantId = databaseService.getCurrentTenant();
+    
+    if (currentTenantId && allTenants.length > 0) {
+      const tenant = allTenants.find(t => t.id === currentTenantId);
+      if (tenant) {
+        setSelectedTenant(tenant);
+        onTenantSelectedRef.current(tenant);
+      }
+    }
+    
+    setInitialized(true);
+  }, [loadTenants]); // Removed onTenantSelected dependency
 
   const handleTenantSelect = (tenant) => {
     setSelectedTenant(tenant);
@@ -39,7 +50,7 @@ const TenantSelector = ({ onTenantSelected }) => {
     setLoading(true);
     try {
       const newTenant = await databaseService.createTenant(newTenantName.trim());
-      setTenants(prev => [...prev, newTenant]);
+      loadTenants(); // Reload all tenants
       setNewTenantName('');
       setShowCreateForm(false);
       handleTenantSelect(newTenant);
@@ -55,7 +66,7 @@ const TenantSelector = ({ onTenantSelected }) => {
     if (window.confirm(`Are you sure you want to delete "${tenantName}" and all its data?`)) {
       try {
         await databaseService.deleteTenant(tenantId);
-        setTenants(prev => prev.filter(t => t.id !== tenantId));
+        loadTenants(); // Reload all tenants
         
         if (selectedTenant?.id === tenantId) {
           setSelectedTenant(null);
@@ -75,6 +86,15 @@ const TenantSelector = ({ onTenantSelected }) => {
           <h3>Current Organization: {selectedTenant.name}</h3>
           <button onClick={() => setSelectedTenant(null)}>Switch Organization</button>
         </div>
+      </div>
+    );
+  }
+
+  // Show loading while checking for existing tenant
+  if (!initialized) {
+    return (
+      <div className="tenant-selector">
+        <div className="loading">Checking for existing organization...</div>
       </div>
     );
   }

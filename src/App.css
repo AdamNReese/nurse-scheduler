@@ -92,22 +92,36 @@ button:disabled {
   margin-bottom: 20px;
 }
 
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .nurse-list table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px; /* Ensures horizontal scroll on mobile */
 }
 
 .nurse-list th,
 .nurse-list td {
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #ddd;
   text-align: left;
+  white-space: nowrap;
 }
 
 .nurse-list th {
   background-color: #f8f9fa;
   font-weight: bold;
   color: #555;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .nurse-list tr:nth-child(even) {
@@ -116,8 +130,30 @@ button:disabled {
 
 .nurse-list button {
   margin-right: 5px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nurse-list button:first-child {
+  background-color: #007bff;
+  color: white;
+}
+
+.nurse-list button:first-child:hover {
+  background-color: #0056b3;
+}
+
+.nurse-list button:last-child {
+  background-color: #dc3545;
+  color: white;
+}
+
+.nurse-list button:last-child:hover {
+  background-color: #c82333;
 }
 
 .nurse-edit-overlay {
@@ -308,10 +344,32 @@ button:disabled {
   text-align: left;
 }
 
-.schedule-display h3 {
-  text-align: center;
-  color: #333;
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+}
+
+.schedule-display h3 {
+  color: #333;
+  margin: 0;
+}
+
+.save-schedule-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.save-schedule-btn:hover {
+  background-color: #218838;
 }
 
 .schedule-day {
@@ -375,6 +433,16 @@ button:disabled {
   border-radius: 12px;
   font-size: 12px;
   font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.nurse-name.clickable {
+  cursor: pointer;
+}
+
+.nurse-name.clickable:hover {
+  background-color: #0056b3;
+  transform: scale(1.05);
 }
 
 .unassigned {
@@ -382,13 +450,393 @@ button:disabled {
   color: #dc3545;
 }
 
+/* Confirmation Dialog Styles */
+.confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.confirmation-modal {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease-out;
+}
+
+.confirmation-header {
+  padding: 20px 24px 0 24px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.confirmation-header h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.confirmation-body {
+  padding: 20px 24px;
+}
+
+.confirmation-body p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 24px 24px 24px;
+  border-top: 1px solid #e5e5e5;
+  background-color: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.confirmation-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.cancel-btn {
+  background-color: #f8f9fa;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.cancel-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.confirm-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background-color: #0056b3;
+}
+
+.confirm-btn.destructive {
+  background-color: #dc3545;
+}
+
+.confirm-btn.destructive:hover {
+  background-color: #c82333;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Nurse Replacement Selector Styles */
+.nurse-replacement-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.nurse-replacement-modal {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease-out;
+}
+
+.replacement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.replacement-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  border-radius: 50%;
+}
+
+.close-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.replacement-body {
+  padding: 20px 24px;
+}
+
+.shift-info {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.shift-info h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.shift-info p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.nurse-selection h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.nurse-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.nurse-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: white;
+}
+
+.nurse-option:hover {
+  border-color: #007bff;
+  background-color: #f8f9ff;
+}
+
+.nurse-option.selected {
+  border-color: #007bff;
+  background-color: #e3f2fd;
+}
+
+.nurse-option.current {
+  border-color: #28a745;
+  background-color: #f8fff8;
+}
+
+.nurse-option.current.selected {
+  border-color: #28a745;
+  background-color: #e8f5e8;
+}
+
+.nurse-info {
+  flex: 1;
+}
+
+.nurse-name {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.current-label {
+  font-size: 12px;
+  color: #28a745;
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+.nurse-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 12px;
+  color: #666;
+}
+
+.nurse-details span {
+  white-space: nowrap;
+}
+
+.selection-indicator {
+  color: #007bff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.nurse-option.current .selection-indicator {
+  color: #28a745;
+}
+
+.no-nurses {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.replacement-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e5e5e5;
+  background-color: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.replacement-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.replacement-actions .cancel-btn {
+  background-color: #f8f9fa;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.replacement-actions .cancel-btn:hover {
+  background-color: #e9ecef;
+}
+
+.replacement-actions .replace-btn {
+  background-color: #007bff;
+  color: white;
+}
+
+.replacement-actions .replace-btn:hover {
+  background-color: #0056b3;
+}
+
+.replacement-actions .replace-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Mobile-specific improvements */
 @media (max-width: 768px) {
   .App {
     padding: 10px;
   }
   
+  .section {
+    margin-bottom: 20px;
+    padding: 15px;
+  }
+  
+  .nurse-list h3 {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+  
+  .table-container {
+    margin: 0 -15px; /* Extend to screen edges on mobile */
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
   .nurse-list table {
     font-size: 14px;
+    min-width: 700px; /* Slightly smaller min-width for mobile */
+  }
+  
+  .nurse-list th,
+  .nurse-list td {
+    padding: 8px;
+  }
+  
+  .nurse-list button {
+    padding: 4px 8px;
+    font-size: 11px;
+    margin-right: 3px;
+  }
+  
+  /* Add scroll hint for mobile users */
+  .table-container::after {
+    content: "← Scroll to see more →";
+    display: block;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    color: #666;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
   }
   
   .shifts {
@@ -403,5 +851,43 @@ button:disabled {
   
   .assigned-nurses {
     justify-content: flex-start;
+  }
+  
+  /* Improve tenant selector on mobile */
+  .tenant-selector {
+    padding: 15px;
+  }
+  
+  .tenant-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .tenant-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .nurse-list table {
+    min-width: 600px;
+  }
+  
+  .nurse-list th,
+  .nurse-list td {
+    padding: 6px;
+  }
+  
+  .nurse-list button {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
+  
+  .table-container::after {
+    font-size: 11px;
+    padding: 6px;
   }
 }

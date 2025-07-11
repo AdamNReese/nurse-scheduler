@@ -141,7 +141,7 @@ export class DatabaseService {
       }
     ];
 
-    await this.saveTenantData(tenantId, { nurses: initialNurses });
+    await this.saveTenantData(tenantId, { nurses: initialNurses, schedules: [] });
   }
 
   // Set current tenant
@@ -175,7 +175,7 @@ export class DatabaseService {
     try {
       const storageKey = this.getTenantStorageKey(tenantId);
       const data = localStorage.getItem(storageKey);
-      return data ? JSON.parse(data) : { nurses: [] };
+      return data ? JSON.parse(data) : { nurses: [], schedules: [] };
     } catch (error) {
       console.error('Error loading tenant data:', error);
       throw error;
@@ -220,7 +220,9 @@ export class DatabaseService {
         weekendPreference: nurse.weekendPreference
       }));
 
-      await this.saveTenantData(tenantId, { nurses: nurseData });
+      const currentData = await this.loadTenantData(tenantId);
+      currentData.nurses = nurseData;
+      await this.saveTenantData(tenantId, currentData);
       return true;
     } catch (error) {
       console.error('Error saving nurses:', error);
@@ -342,6 +344,113 @@ export class DatabaseService {
       return true;
     } catch (error) {
       console.error('Error deleting tenant:', error);
+      throw error;
+    }
+  }
+
+  // Save schedule for current tenant
+  async saveSchedule(scheduleData) {
+    try {
+      console.log('Saving schedule data:', scheduleData);
+      
+      const tenantId = this.getCurrentTenant();
+      if (!tenantId) {
+        throw new Error('No tenant selected');
+      }
+
+      const data = await this.loadTenantData(tenantId);
+      
+      // Validate schedule data
+      if (!scheduleData || !scheduleData.slots || !Array.isArray(scheduleData.slots)) {
+        throw new Error('Invalid schedule data: missing or invalid slots');
+      }
+
+      // Convert schedule to serializable format
+      const serializedSchedule = {
+        id: scheduleData.id || Date.now().toString(),
+        name: scheduleData.name || `Schedule ${new Date().toLocaleDateString()}`,
+        startDate: scheduleData.startDate,
+        numDays: scheduleData.numDays,
+        createdAt: new Date().toISOString(),
+        slots: scheduleData.slots.map((slot, index) => {
+          try {
+            return {
+              date: slot.date instanceof Date ? slot.date.toISOString() : new Date(slot.date).toISOString(),
+              shift: slot.shift,
+              nurses: (slot.nurses || []).map(nurse => {
+                if (!nurse || !nurse.name) {
+                  console.warn('Invalid nurse data at slot', index, nurse);
+                  return null;
+                }
+                return {
+                  name: nurse.name,
+                  hireDate: nurse.hireDate instanceof Date ? nurse.hireDate.toISOString().split('T')[0] : nurse.hireDate,
+                  dayShiftPreference: nurse.dayShiftPreference,
+                  nightShiftPreference: nurse.nightShiftPreference,
+                  weekendPreference: nurse.weekendPreference
+                };
+              }).filter(nurse => nurse !== null)
+            };
+          } catch (slotError) {
+            console.error('Error processing slot at index', index, slotError);
+            throw new Error(`Error processing slot ${index}: ${slotError.message}`);
+          }
+        })
+      };
+
+      // Ensure schedules array exists
+      if (!data.schedules) {
+        data.schedules = [];
+      }
+
+      // Replace existing schedule or add new one
+      const existingIndex = data.schedules.findIndex(s => s.id === serializedSchedule.id);
+      if (existingIndex >= 0) {
+        data.schedules[existingIndex] = serializedSchedule;
+      } else {
+        data.schedules.push(serializedSchedule);
+      }
+
+      await this.saveTenantData(tenantId, data);
+      console.log('Schedule saved successfully:', serializedSchedule.id);
+      return serializedSchedule;
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      throw error;
+    }
+  }
+
+  // Get all schedules for current tenant
+  async getAllSchedules() {
+    try {
+      const tenantId = this.getCurrentTenant();
+      if (!tenantId) {
+        throw new Error('No tenant selected');
+      }
+
+      const data = await this.loadTenantData(tenantId);
+      return data.schedules || [];
+    } catch (error) {
+      console.error('Error getting schedules:', error);
+      throw error;
+    }
+  }
+
+  // Delete a schedule
+  async deleteSchedule(scheduleId) {
+    try {
+      const tenantId = this.getCurrentTenant();
+      if (!tenantId) {
+        throw new Error('No tenant selected');
+      }
+
+      const data = await this.loadTenantData(tenantId);
+      data.schedules = data.schedules.filter(s => s.id !== scheduleId);
+      
+      await this.saveTenantData(tenantId, data);
+      return true;
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
       throw error;
     }
   }

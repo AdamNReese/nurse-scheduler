@@ -1,10 +1,54 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Shift } from '../scheduler';
+import NurseReplacementSelector from './NurseReplacementSelector';
 
-const ScheduleDisplay = ({ schedule }) => {
+const ScheduleDisplay = ({ schedule, allNurses, onScheduleChange, onSaveSchedule, hasChanges }) => {
+  const [showReplacement, setShowReplacement] = useState(false);
+  const [replacementData, setReplacementData] = useState(null);
   if (!schedule || schedule.length === 0) {
     return <div className="schedule-display">No schedule generated yet.</div>;
   }
+
+  const handleNurseClick = (nurse, slot, nurseIndex) => {
+    setReplacementData({
+      currentNurse: nurse,
+      slot: slot,
+      nurseIndex: nurseIndex,
+      slotInfo: {
+        date: slot.date,
+        shift: slot.shift
+      }
+    });
+    setShowReplacement(true);
+  };
+
+  const handleReplaceNurse = (newNurse) => {
+    if (replacementData && onScheduleChange) {
+      const updatedSchedule = [...schedule];
+      const slotIndex = updatedSchedule.findIndex(s => 
+        s.date.getTime() === replacementData.slot.date.getTime() && 
+        s.shift === replacementData.slot.shift
+      );
+      
+      if (slotIndex >= 0) {
+        updatedSchedule[slotIndex].nurses[replacementData.nurseIndex] = newNurse;
+        onScheduleChange(updatedSchedule);
+      }
+    }
+    setShowReplacement(false);
+    setReplacementData(null);
+  };
+
+  const handleCancelReplacement = () => {
+    setShowReplacement(false);
+    setReplacementData(null);
+  };
+
+  const handleSaveSchedule = () => {
+    if (onSaveSchedule) {
+      onSaveSchedule();
+    }
+  };
 
   const groupedSchedule = {};
   schedule.forEach(slot => {
@@ -17,7 +61,15 @@ const ScheduleDisplay = ({ schedule }) => {
 
   return (
     <div className="schedule-display">
-      <h3>Generated Schedule</h3>
+      <div className="schedule-header">
+        <h3>Generated Schedule</h3>
+        {hasChanges && (
+          <button onClick={handleSaveSchedule} className="save-schedule-btn">
+            Save Schedule
+          </button>
+        )}
+      </div>
+      
       {Object.entries(groupedSchedule).map(([date, slots]) => (
         <div key={date} className="schedule-day">
           <h4>{date}</h4>
@@ -30,7 +82,12 @@ const ScheduleDisplay = ({ schedule }) => {
                 <div className="assigned-nurses">
                   {slot.nurses && slot.nurses.length > 0 ? (
                     slot.nurses.map((nurse, nurseIndex) => (
-                      <span key={nurseIndex} className="nurse-name">
+                      <span 
+                        key={nurseIndex} 
+                        className="nurse-name clickable"
+                        onClick={() => handleNurseClick(nurse, slot, nurseIndex)}
+                        title="Click to replace this nurse"
+                      >
                         {nurse.name}
                       </span>
                     ))
@@ -43,6 +100,18 @@ const ScheduleDisplay = ({ schedule }) => {
           </div>
         </div>
       ))}
+
+      {showReplacement && replacementData && (
+        <NurseReplacementSelector
+          isOpen={showReplacement}
+          currentNurse={replacementData.currentNurse}
+          allNurses={allNurses || []}
+          assignedNurses={replacementData.slot.nurses || []}
+          slotInfo={replacementData.slotInfo}
+          onReplace={handleReplaceNurse}
+          onCancel={handleCancelReplacement}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import NurseForm from './components/NurseForm';
 import NurseList from './components/NurseList';
@@ -13,6 +13,7 @@ function App() {
   const [nurses, setNurses] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [scheduleHasChanges, setScheduleHasChanges] = useState(false);
 
   // Load nurses when tenant is selected
   useEffect(() => {
@@ -29,11 +30,16 @@ function App() {
   }, [nurses]);
 
   const loadNurses = async () => {
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      console.log('No current tenant, skipping nurse loading');
+      return;
+    }
     
+    console.log('Loading nurses for tenant:', currentTenant);
     setLoading(true);
     try {
       const loadedNurses = await databaseService.getAllNurses();
+      console.log('Loaded nurses:', loadedNurses);
       setNurses(loadedNurses);
     } catch (error) {
       console.error('Error loading nurses:', error);
@@ -51,15 +57,18 @@ function App() {
     const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const initialSchedule = scheduler.generateSchedule(startDate, 7);
     setSchedule(initialSchedule);
+    setScheduleHasChanges(false); // Initial schedule has no changes
   };
 
-  const handleTenantSelected = (tenant) => {
+  const handleTenantSelected = useCallback((tenant) => {
+    console.log('Tenant selected:', tenant);
     setCurrentTenant(tenant);
     if (!tenant) {
       setNurses([]);
       setSchedule([]);
+      setScheduleHasChanges(false);
     }
-  };
+  }, []);
 
   const addNurse = async (nurseData) => {
     try {
@@ -100,6 +109,39 @@ function App() {
     const scheduler = new NurseScheduler(nurses);
     const newSchedule = scheduler.generateSchedule(startDate, numDays);
     setSchedule(newSchedule);
+    setScheduleHasChanges(false); // Reset changes when generating new schedule
+  };
+
+  const handleScheduleChange = (updatedSchedule) => {
+    setSchedule(updatedSchedule);
+    setScheduleHasChanges(true); // Mark as changed when user edits
+  };
+
+  const saveSchedule = async () => {
+    if (!schedule || schedule.length === 0) {
+      alert('No schedule to save.');
+      return;
+    }
+
+    try {
+      console.log('Attempting to save schedule:', schedule);
+      
+      const scheduleData = {
+        slots: schedule,
+        startDate: schedule[0]?.date?.toISOString() || new Date().toISOString(),
+        numDays: Math.ceil(schedule.length / 2) // Assuming 2 shifts per day
+      };
+
+      console.log('Schedule data prepared for saving:', scheduleData);
+
+      const savedSchedule = await databaseService.saveSchedule(scheduleData);
+      console.log('Schedule saved successfully:', savedSchedule);
+      setScheduleHasChanges(false); // Reset changes after successful save
+      alert('Schedule saved successfully!');
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      alert(`Failed to save schedule: ${error.message}`);
+    }
   };
 
   if (!currentTenant) {
@@ -144,7 +186,13 @@ function App() {
             </div>
 
             <div className="section">
-              <ScheduleDisplay schedule={schedule} />
+              <ScheduleDisplay 
+                schedule={schedule} 
+                allNurses={nurses}
+                onScheduleChange={handleScheduleChange}
+                onSaveSchedule={saveSchedule}
+                hasChanges={scheduleHasChanges}
+              />
             </div>
           </>
         )}
