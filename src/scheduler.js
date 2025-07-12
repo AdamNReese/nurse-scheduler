@@ -67,32 +67,45 @@ export class NurseScheduler {
   }
 
   _assignShifts(schedule) {
-    const nightShifts = schedule.filter(slot => slot.shift === Shift.NIGHT);
-    const dayShifts = schedule.filter(slot => slot.shift === Shift.DAY);
-    
     // Track nurse assignments across all shifts
     const nurseAssignments = {};
     this.nurses.forEach(nurse => {
       nurseAssignments[nurse.name] = 0;
     });
     
-    this._assignNightShifts(nightShifts, nurseAssignments);
-    this._assignDayShifts(dayShifts, nurseAssignments);
-  }
-
-  _assignNightShifts(nightShifts, nurseAssignments) {
-    nightShifts.forEach(slot => {
-      this._assignNursesToShift(slot, Shift.NIGHT, nurseAssignments);
+    // Group shifts by date to prevent double assignments on same day
+    const scheduleByDate = {};
+    schedule.forEach(slot => {
+      const dateKey = slot.date.toDateString();
+      if (!scheduleByDate[dateKey]) {
+        scheduleByDate[dateKey] = { day: null, night: null };
+      }
+      scheduleByDate[dateKey][slot.shift] = slot;
+    });
+    
+    // Assign shifts day by day to prevent conflicts
+    Object.values(scheduleByDate).forEach(dayShifts => {
+      this._assignDayShifts(dayShifts, nurseAssignments);
     });
   }
 
   _assignDayShifts(dayShifts, nurseAssignments) {
-    dayShifts.forEach(slot => {
-      this._assignNursesToShift(slot, Shift.DAY, nurseAssignments);
-    });
+    const daySlot = dayShifts.day;
+    const nightSlot = dayShifts.night;
+    const dailyAssignedNurses = new Set();
+    
+    // Assign night shift first (typically has fewer willing nurses)
+    if (nightSlot) {
+      this._assignNursesToShift(nightSlot, Shift.NIGHT, nurseAssignments, dailyAssignedNurses);
+    }
+    
+    // Then assign day shift
+    if (daySlot) {
+      this._assignNursesToShift(daySlot, Shift.DAY, nurseAssignments, dailyAssignedNurses);
+    }
   }
 
-  _assignNursesToShift(slot, shiftType, nurseAssignments) {
+  _assignNursesToShift(slot, shiftType, nurseAssignments, dailyAssignedNurses = new Set()) {
     const targetNurses = Math.min(
       this.maxNursesPerShift,
       Math.max(this.minNursesPerShift, Math.floor(this.nurses.length / 2))
@@ -105,15 +118,30 @@ export class NurseScheduler {
     const availableNurses = [...preferenceOrder];
 
     while (assignedNurses.length < targetNurses && availableNurses.length > 0) {
-      const nurse = this._findBestNurseForSlot(slot, availableNurses, nurseAssignments);
+      const nurse = this._findBestNurseForSlot(slot, availableNurses, nurseAssignments, dailyAssignedNurses);
       if (nurse) {
         assignedNurses.push(nurse);
         nurseAssignments[nurse.name]++;
+        dailyAssignedNurses.add(nurse.name);
         // Remove nurse from available list to prevent double assignment to same shift
         const index = availableNurses.indexOf(nurse);
         availableNurses.splice(index, 1);
       } else {
         break;
+      }
+    }
+    
+    // Fallback: if we don't have enough nurses and minNursesPerShift requirement isn't met,
+    // allow double assignments but prefer those with fewer total assignments
+    if (assignedNurses.length < this.minNursesPerShift && this.nurses.length < this.minNursesPerShift * 2) {
+      const remainingNeeded = this.minNursesPerShift - assignedNurses.length;
+      const fallbackOrder = this._getSortedNursesByPreference(shiftType, slot.isWeekend)
+        .filter(nurse => !assignedNurses.includes(nurse))
+        .sort((a, b) => (nurseAssignments[a.name] || 0) - (nurseAssignments[b.name] || 0));
+      
+      for (let i = 0; i < Math.min(remainingNeeded, fallbackOrder.length); i++) {
+        assignedNurses.push(fallbackOrder[i]);
+        nurseAssignments[fallbackOrder[i].name]++;
       }
     }
 
@@ -158,7 +186,7 @@ export class NurseScheduler {
     });
   }
 
-  _findBestNurseForSlot(slot, preferenceOrder, nurseAssignments) {
+  _findBestNurseForSlot(slot, preferenceOrder, nurseAssignments, dailyAssignedNurses = new Set()) {
     // Sort by current assignment count (fewer assignments first) and then by preference order
     const sortedNurses = [...preferenceOrder].sort((a, b) => {
       const aAssignments = nurseAssignments[a.name] || 0;
@@ -170,18 +198,24 @@ export class NurseScheduler {
     });
 
     for (const nurse of sortedNurses) {
-      if (this._isNurseAvailable(nurse, slot)) {
+      if (this._isNurseAvailable(nurse, slot, dailyAssignedNurses)) {
         return nurse;
       }
     }
     return null;
   }
 
-  _isNurseAvailable(nurse, slot) {
+  _isNurseAvailable(nurse, slot, dailyAssignedNurses = new Set()) {
     // Check if nurse is already assigned to this slot
     if (slot.nurses.includes(nurse)) {
       return false;
     }
+    
+    // Check if nurse is already assigned to another shift on the same day
+    if (dailyAssignedNurses.has(nurse.name)) {
+      return false;
+    }
+    
     return true;
   }
 }
