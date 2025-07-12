@@ -590,7 +590,8 @@ button:disabled {
   max-width: 600px;
   width: 90%;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   animation: slideIn 0.3s ease-out;
 }
 
@@ -600,6 +601,7 @@ button:disabled {
   align-items: center;
   padding: 20px 24px;
   border-bottom: 1px solid #e5e5e5;
+  flex-shrink: 0;
 }
 
 .replacement-header h3 {
@@ -630,6 +632,9 @@ button:disabled {
 
 .replacement-body {
   padding: 20px 24px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .shift-info {
@@ -751,6 +756,7 @@ button:disabled {
   border-top: 1px solid #e5e5e5;
   background-color: #f8f9fa;
   border-radius: 0 0 12px 12px;
+  flex-shrink: 0;
 }
 
 .replacement-actions button {
@@ -868,6 +874,54 @@ button:disabled {
     width: 100%;
     justify-content: flex-end;
   }
+
+  /* Mobile-specific modal improvements */
+  .nurse-replacement-modal {
+    width: 95%;
+    max-height: 85vh;
+    margin: 20px auto;
+  }
+
+  .replacement-header {
+    padding: 15px 20px;
+  }
+
+  .replacement-body {
+    padding: 15px 20px;
+  }
+
+  .shift-info {
+    padding: 12px;
+    margin-bottom: 15px;
+  }
+
+  .nurse-options {
+    max-height: 200px; /* Reduced height on mobile */
+  }
+
+  .nurse-option {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .nurse-details {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+
+  .replacement-actions {
+    padding: 15px 20px;
+    gap: 10px;
+  }
+
+  .replacement-actions button {
+    padding: 12px 16px;
+    font-size: 16px; /* Larger touch targets */
+    min-width: 90px;
+  }
 }
 
 /* Extra small screens */
@@ -889,5 +943,43 @@ button:disabled {
   .table-container::after {
     font-size: 11px;
     padding: 6px;
+  }
+
+  /* Extra small screen modal adjustments */
+  .nurse-replacement-modal {
+    width: 98%;
+    max-height: 80vh;
+    margin: 10px auto;
+  }
+
+  .replacement-header {
+    padding: 12px 16px;
+  }
+
+  .replacement-header h3 {
+    font-size: 16px;
+  }
+
+  .replacement-body {
+    padding: 12px 16px;
+  }
+
+  .nurse-options {
+    max-height: 150px; /* Even smaller on tiny screens */
+  }
+
+  .nurse-option {
+    padding: 10px;
+  }
+
+  .replacement-actions {
+    padding: 12px 16px;
+    flex-direction: column;
+  }
+
+  .replacement-actions button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
   }
 }
