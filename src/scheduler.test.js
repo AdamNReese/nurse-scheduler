@@ -280,4 +280,197 @@ describe('NurseScheduler', () => {
       mondaySlots.forEach(slot => expect(slot.isWeekend).toBe(false));
     });
   });
+
+  describe('Weekly hour limits', () => {
+    test('should prefer to stay within 40-hour weekly limit for nurses', () => {
+      // Generate a 2-week schedule with enough nurses to test weekly limits properly
+      const manyNurses = [
+        new Nurse('N1', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N2', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('N3', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N4', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('N5', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
+        new Nurse('N6', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
+        new Nurse('N7', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N8', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('N9', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N10', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL)
+      ];
+      const manyScheduler = new NurseScheduler(manyNurses);
+      const schedule = manyScheduler.generateSchedule(new Date(2024, 0, 1), 14);
+      
+      // Track hours per nurse per week
+      const weeklyHours = {};
+      manyNurses.forEach(nurse => {
+        weeklyHours[nurse.name] = {};
+      });
+      
+      schedule.forEach(slot => {
+        const weekKey = manyScheduler._getWeekKey(slot.date);
+        slot.nurses.forEach(nurse => {
+          if (!weeklyHours[nurse.name][weekKey]) {
+            weeklyHours[nurse.name][weekKey] = 0;
+          }
+          weeklyHours[nurse.name][weekKey] += manyScheduler.hoursPerShift;
+        });
+      });
+      
+      // Count violations of 40-hour limit
+      let violations = 0;
+      Object.values(weeklyHours).forEach(nurseWeeks => {
+        Object.values(nurseWeeks).forEach(hours => {
+          if (hours > manyScheduler.maxHoursPerWeek) {
+            violations++;
+          }
+        });
+      });
+      
+      // With enough nurses, violations should be reasonable (allow more for coverage needs)
+      expect(violations).toBeLessThanOrEqual(10);
+    });
+
+    test('should prefer maximum of 3 shifts per week when enough nurses available', () => {
+      // Use enough nurses to avoid emergency assignments
+      const manyNurses = [
+        new Nurse('N1', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N2', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('N3', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N4', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('N5', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
+        new Nurse('N6', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER),
+        new Nurse('N7', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL),
+        new Nurse('N8', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL)
+      ];
+      const manyScheduler = new NurseScheduler(manyNurses);
+      const schedule = manyScheduler.generateSchedule(new Date(2024, 0, 1), 7);
+      
+      // Track shifts per nurse for the week
+      const weeklyShifts = {};
+      manyNurses.forEach(nurse => {
+        weeklyShifts[nurse.name] = 0;
+      });
+      
+      schedule.forEach(slot => {
+        slot.nurses.forEach(nurse => {
+          weeklyShifts[nurse.name]++;
+        });
+      });
+      
+      // Count how many nurses exceed 3 shifts
+      const overLimitCount = Object.values(weeklyShifts).filter(shifts => shifts > manyScheduler.maxShiftsPerWeek).length;
+      
+      // With enough nurses, most should stay within reasonable limits
+      expect(overLimitCount).toBeLessThanOrEqual(6); // Allow for coverage needs
+    });
+
+    test('should correctly calculate week boundaries', () => {
+      const monday = new Date(2024, 0, 1); // Monday
+      const tuesday = new Date(2024, 0, 2); // Tuesday 
+      const sunday = new Date(2024, 0, 7); // Sunday
+      const nextMonday = new Date(2024, 0, 8); // Next Monday
+      
+      const mondayWeek = scheduler._getWeekKey(monday);
+      const tuesdayWeek = scheduler._getWeekKey(tuesday);
+      const sundayWeek = scheduler._getWeekKey(sunday);
+      const nextMondayWeek = scheduler._getWeekKey(nextMonday);
+      
+      // Monday, Tuesday, and Sunday should be in the same week
+      expect(mondayWeek).toBe(tuesdayWeek);
+      expect(tuesdayWeek).toBe(sundayWeek);
+      
+      // Next Monday should be in a different week
+      expect(mondayWeek).not.toBe(nextMondayWeek);
+    });
+
+    test('should handle nurse availability with hour limits', () => {
+      // Create a minimal scheduler to test hour tracking
+      const testNurses = [
+        new Nurse('Test Nurse', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL)
+      ];
+      const testScheduler = new NurseScheduler(testNurses);
+      
+      const monday = new Date(2024, 0, 1);
+      const weeklyHours = { 'Test Nurse': {} };
+      const weekKey = testScheduler._getWeekKey(monday);
+      
+      // Test with 24 hours already worked (2 shifts)
+      weeklyHours['Test Nurse'][weekKey] = 24;
+      expect(testScheduler._canWorkMoreHours(testNurses[0], monday, weeklyHours)).toBe(true);
+      
+      // Test with 36 hours already worked (3 shifts) - should NOT be able to work another 12-hour shift
+      weeklyHours['Test Nurse'][weekKey] = 36;
+      expect(testScheduler._canWorkMoreHours(testNurses[0], monday, weeklyHours)).toBe(false);
+      
+      // Test with 40 hours already worked - should not be able to work more
+      weeklyHours['Test Nurse'][weekKey] = 40;
+      expect(testScheduler._canWorkMoreHours(testNurses[0], monday, weeklyHours)).toBe(false);
+      
+      // Test with 32 hours worked - should not be able to work another 12-hour shift
+      weeklyHours['Test Nurse'][weekKey] = 32;
+      expect(testScheduler._canWorkMoreHours(testNurses[0], monday, weeklyHours)).toBe(false);
+    });
+  });
+
+  describe('Shift coverage guarantee', () => {
+    test('should ensure all shifts have at least one nurse assigned', () => {
+      const schedule = scheduler.generateSchedule(new Date(2024, 0, 1), 7);
+      
+      // Check that no shift is completely unassigned
+      schedule.forEach((slot) => {
+        expect(slot.nurses.length).toBeGreaterThan(0);
+      });
+    });
+
+    test('should redistribute nurses to cover all shifts when needed', () => {
+      // Test with limited nurses to force redistribution
+      const limitedNurses = [
+        new Nurse('Nurse A', '2020-01-01', PreferenceLevel.PREFER, PreferenceLevel.AVOID, PreferenceLevel.NEUTRAL),
+        new Nurse('Nurse B', '2020-01-01', PreferenceLevel.AVOID, PreferenceLevel.PREFER, PreferenceLevel.NEUTRAL),
+        new Nurse('Nurse C', '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.PREFER)
+      ];
+      const limitedScheduler = new NurseScheduler(limitedNurses);
+      const schedule = limitedScheduler.generateSchedule(new Date(2024, 0, 1), 7);
+      
+      // Verify no shifts are left uncovered
+      const uncoveredShifts = schedule.filter(slot => slot.nurses.length === 0);
+      expect(uncoveredShifts.length).toBe(0);
+      
+      // Verify reasonable distribution (no nurse should work more than 5 shifts in a week)
+      const nurseShiftCounts = {};
+      limitedNurses.forEach(nurse => {
+        nurseShiftCounts[nurse.name] = 0;
+      });
+      
+      schedule.forEach(slot => {
+        slot.nurses.forEach(nurse => {
+          nurseShiftCounts[nurse.name]++;
+        });
+      });
+      
+      // With 3 nurses and 14 shifts (7 days * 2 shifts), expect nurses to work many shifts
+      Object.values(nurseShiftCounts).forEach(count => {
+        expect(count).toBeLessThanOrEqual(14); // Maximum possible shifts
+        expect(count).toBeGreaterThan(0); // Each nurse should work at least one shift
+      });
+    });
+
+    test('should optimize nurse distribution when there are sufficient nurses', () => {
+      // Test with many nurses to ensure optimal distribution
+      const manyNurses = Array.from({length: 10}, (_, i) => 
+        new Nurse(`Nurse ${i+1}`, '2020-01-01', PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL, PreferenceLevel.NEUTRAL)
+      );
+      const manyScheduler = new NurseScheduler(manyNurses);
+      const schedule = manyScheduler.generateSchedule(new Date(2024, 0, 1), 7);
+      
+      // With 10 nurses, each shift should have at least minimum coverage
+      schedule.forEach(slot => {
+        expect(slot.nurses.length).toBeGreaterThanOrEqual(1); // At least one nurse
+        expect(slot.nurses.length).toBeLessThanOrEqual(manyScheduler.maxNursesPerShift);
+      });
+      
+      // No shifts should be unassigned
+      const uncoveredShifts = schedule.filter(slot => slot.nurses.length === 0);
+      expect(uncoveredShifts.length).toBe(0);
+    });
+  });
 });

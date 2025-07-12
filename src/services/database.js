@@ -138,6 +138,41 @@ export class DatabaseService {
         dayShiftPreference: PreferenceLevel.AVOID,
         nightShiftPreference: PreferenceLevel.PREFER,
         weekendPreference: PreferenceLevel.NEUTRAL
+      },
+      {
+        name: 'Maria Gonzalez',
+        hireDate: '2024-03-22',
+        dayShiftPreference: PreferenceLevel.PREFER,
+        nightShiftPreference: PreferenceLevel.AVOID,
+        weekendPreference: PreferenceLevel.PREFER
+      },
+      {
+        name: 'James Wilson',
+        hireDate: '2024-04-15',
+        dayShiftPreference: PreferenceLevel.NEUTRAL,
+        nightShiftPreference: PreferenceLevel.NEUTRAL,
+        weekendPreference: PreferenceLevel.AVOID
+      },
+      {
+        name: 'Patricia Taylor',
+        hireDate: '2024-05-10',
+        dayShiftPreference: PreferenceLevel.AVOID,
+        nightShiftPreference: PreferenceLevel.PREFER,
+        weekendPreference: PreferenceLevel.NEUTRAL
+      },
+      {
+        name: 'Thomas Garcia',
+        hireDate: '2024-06-18',
+        dayShiftPreference: PreferenceLevel.PREFER,
+        nightShiftPreference: PreferenceLevel.NEUTRAL,
+        weekendPreference: PreferenceLevel.PREFER
+      },
+      {
+        name: 'Jennifer Moore',
+        hireDate: '2024-07-05',
+        dayShiftPreference: PreferenceLevel.NEUTRAL,
+        nightShiftPreference: PreferenceLevel.PREFER,
+        weekendPreference: PreferenceLevel.AVOID
       }
     ];
 
