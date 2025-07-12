@@ -70,58 +70,38 @@ export class NurseScheduler {
     const nightShifts = schedule.filter(slot => slot.shift === Shift.NIGHT);
     const dayShifts = schedule.filter(slot => slot.shift === Shift.DAY);
     
-    this._assignNightShifts(nightShifts);
-    this._assignDayShifts(dayShifts);
-  }
-
-  _assignNightShifts(nightShifts) {
-    // Sort nurses by night shift preference (prefer first), then by seniority (newest first)
-    const nightPreferenceOrder = [...this.nurses].sort((a, b) => {
-      if (a.nightShiftPreference === PreferenceLevel.PREFER && b.nightShiftPreference !== PreferenceLevel.PREFER) return -1;
-      if (b.nightShiftPreference === PreferenceLevel.PREFER && a.nightShiftPreference !== PreferenceLevel.PREFER) return 1;
-      if (a.nightShiftPreference === PreferenceLevel.AVOID && b.nightShiftPreference !== PreferenceLevel.AVOID) return 1;
-      if (b.nightShiftPreference === PreferenceLevel.AVOID && a.nightShiftPreference !== PreferenceLevel.AVOID) return -1;
-      return a.seniorityYears - b.seniorityYears; // Lower seniority (newer) first
-    });
-
     // Track nurse assignments across all shifts
     const nurseAssignments = {};
     this.nurses.forEach(nurse => {
       nurseAssignments[nurse.name] = 0;
     });
+    
+    this._assignNightShifts(nightShifts, nurseAssignments);
+    this._assignDayShifts(dayShifts, nurseAssignments);
+  }
 
+  _assignNightShifts(nightShifts, nurseAssignments) {
     nightShifts.forEach(slot => {
-      this._assignNursesToShift(slot, nightPreferenceOrder, nurseAssignments);
+      this._assignNursesToShift(slot, Shift.NIGHT, nurseAssignments);
     });
   }
 
-  _assignDayShifts(dayShifts) {
-    const dayPreferenceOrder = [...this.nurses].sort((a, b) => {
-      if (a.dayShiftPreference === PreferenceLevel.PREFER && b.dayShiftPreference !== PreferenceLevel.PREFER) return -1;
-      if (b.dayShiftPreference === PreferenceLevel.PREFER && a.dayShiftPreference !== PreferenceLevel.PREFER) return 1;
-      if (a.dayShiftPreference === PreferenceLevel.AVOID && b.dayShiftPreference !== PreferenceLevel.AVOID) return 1;
-      if (b.dayShiftPreference === PreferenceLevel.AVOID && a.dayShiftPreference !== PreferenceLevel.AVOID) return -1;
-      return a.seniorityYears - b.seniorityYears; // Lower seniority (newer) first
-    });
-
-    // Track nurse assignments across all shifts
-    const nurseAssignments = {};
-    this.nurses.forEach(nurse => {
-      nurseAssignments[nurse.name] = 0;
-    });
-
+  _assignDayShifts(dayShifts, nurseAssignments) {
     dayShifts.forEach(slot => {
-      this._assignNursesToShift(slot, dayPreferenceOrder, nurseAssignments);
+      this._assignNursesToShift(slot, Shift.DAY, nurseAssignments);
     });
   }
 
-  _assignNursesToShift(slot, preferenceOrder, nurseAssignments) {
+  _assignNursesToShift(slot, shiftType, nurseAssignments) {
     const targetNurses = Math.min(
       this.maxNursesPerShift,
       Math.max(this.minNursesPerShift, Math.floor(this.nurses.length / 2))
     );
 
     const assignedNurses = [];
+    
+    // Get preference-based sorted nurses for this shift
+    const preferenceOrder = this._getSortedNursesByPreference(shiftType, slot.isWeekend);
     const availableNurses = [...preferenceOrder];
 
     while (assignedNurses.length < targetNurses && availableNurses.length > 0) {
@@ -140,6 +120,44 @@ export class NurseScheduler {
     slot.nurses = assignedNurses;
   }
 
+  _getSortedNursesByPreference(shiftType, isWeekend) {
+    return [...this.nurses].sort((a, b) => {
+      // Get preferences for the specific shift type
+      const aShiftPref = shiftType === Shift.DAY ? a.dayShiftPreference : a.nightShiftPreference;
+      const bShiftPref = shiftType === Shift.DAY ? b.dayShiftPreference : b.nightShiftPreference;
+      
+      // Consider weekend preference for weekend shifts
+      const aWeekendPref = isWeekend ? a.weekendPreference : PreferenceLevel.NEUTRAL;
+      const bWeekendPref = isWeekend ? b.weekendPreference : PreferenceLevel.NEUTRAL;
+      
+      // Calculate preference scores (lower is better)
+      const getPreferenceScore = (shiftPref, weekendPref) => {
+        let score = 0;
+        
+        // Shift preference (most important)
+        if (shiftPref === PreferenceLevel.PREFER) score -= 10;
+        else if (shiftPref === PreferenceLevel.AVOID) score += 10;
+        
+        // Weekend preference (less important)
+        if (weekendPref === PreferenceLevel.PREFER) score -= 3;
+        else if (weekendPref === PreferenceLevel.AVOID) score += 5; // Penalize avoiding weekends more
+        
+        return score;
+      };
+      
+      const aScore = getPreferenceScore(aShiftPref, aWeekendPref);
+      const bScore = getPreferenceScore(bShiftPref, bWeekendPref);
+      
+      // First sort by preference score
+      if (aScore !== bScore) {
+        return aScore - bScore;
+      }
+      
+      // If preferences are equal, sort by seniority (lower seniority/newer nurses first)
+      return a.seniorityYears - b.seniorityYears;
+    });
+  }
+
   _findBestNurseForSlot(slot, preferenceOrder, nurseAssignments) {
     // Sort by current assignment count (fewer assignments first) and then by preference order
     const sortedNurses = [...preferenceOrder].sort((a, b) => {
@@ -153,9 +171,6 @@ export class NurseScheduler {
 
     for (const nurse of sortedNurses) {
       if (this._isNurseAvailable(nurse, slot)) {
-        if (slot.isWeekend && nurse.weekendPreference === PreferenceLevel.AVOID) {
-          continue;
-        }
         return nurse;
       }
     }
